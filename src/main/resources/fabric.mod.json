@@ -1,0 +1,34 @@
+{
+	"schemaVersion": 1,
+	"id": "masterattractor",
+	"version": "${version}",
+	"name": "MasterAttractor",
+	"description": "A fully configurable radius magnet: pull in dropped items, XP, projectiles, mobs and more.",
+	"authors": [
+		"MasterAttractor"
+	],
+	"contact": {},
+	"license": "MIT",
+	"icon": "assets/masterattractor/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"dev.masterattractor.MasterAttractor"
+		],
+		"client": [
+			"dev.masterattractor.client.MasterAttractorClient"
+		],
+		"modmenu": [
+			"dev.masterattractor.client.MasterAttractorModMenu"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"modmenu": "*"
+	}
+}
