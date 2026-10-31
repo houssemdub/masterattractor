@@ -8,6 +8,8 @@ import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
+
 public final class MasterAttractorModMenu implements ModMenuApi {
 
 	@Override
@@ -15,114 +17,147 @@ public final class MasterAttractorModMenu implements ModMenuApi {
 		return parent -> {
 			ConfigBuilder builder = ConfigBuilder.create()
 				.setParentScreen(parent)
-				.setTitle(Component.literal("MasterAttractor Configuration"));
+				.setTitle(Component.translatable("config.masterattractor.title"));
 
 			builder.setSavingRunnable(Config::save);
 
 			ConfigEntryBuilder entry = builder.entryBuilder();
 
-			// General Category
-			ConfigCategory general = builder.getOrCreateCategory(Component.literal("General"));
+			// 1. General Category
+			ConfigCategory general = builder.getOrCreateCategory(Component.translatable("config.masterattractor.category.general"));
 
-			general.addEntry(entry.startBooleanToggle(Component.literal("Mod Enabled"), Config.enabled)
+			general.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.enabled"), Config.enabled)
 				.setDefaultValue(true)
-				.setTooltip(Component.literal("Global master toggle for MasterAttractor."))
+				.setTooltip(Component.translatable("config.masterattractor.enabled.tooltip"))
 				.setSaveConsumer(val -> Config.enabled = val)
 				.build());
 
-			general.addEntry(entry.startDoubleField(Component.literal("Attraction Radius"), Config.radius)
+			general.addEntry(entry.startDoubleField(Component.translatable("config.masterattractor.radius"), Config.radius)
 				.setDefaultValue(10.0)
 				.setMin(1.0)
 				.setMax(128.0)
-				.setTooltip(Component.literal("Radius (in blocks) around the player to pull entities from."))
+				.setTooltip(Component.translatable("config.masterattractor.radius.tooltip"))
 				.setSaveConsumer(val -> Config.radius = val)
 				.build());
 
-			general.addEntry(entry.startDoubleField(Component.literal("Pull Strength"), Config.strength)
+			general.addEntry(entry.startDoubleField(Component.translatable("config.masterattractor.strength"), Config.strength)
 				.setDefaultValue(1.25)
 				.setMin(0.1)
 				.setMax(10.0)
-				.setTooltip(Component.literal("Multiplier for the attraction pull force."))
+				.setTooltip(Component.translatable("config.masterattractor.strength.tooltip"))
 				.setSaveConsumer(val -> Config.strength = val)
 				.build());
 
-			general.addEntry(entry.startIntField(Component.literal("Tick Interval"), Config.tickInterval)
+			general.addEntry(entry.startIntField(Component.translatable("config.masterattractor.tickInterval"), Config.tickInterval)
 				.setDefaultValue(1)
 				.setMin(1)
 				.setMax(20)
-				.setTooltip(Component.literal("Run pull logic every N ticks (1 = every tick for maximum smoothness)."))
+				.setTooltip(Component.translatable("config.masterattractor.tickInterval.tooltip"))
 				.setSaveConsumer(val -> Config.tickInterval = val)
 				.build());
 
-			// Targets Category
-			ConfigCategory targets = builder.getOrCreateCategory(Component.literal("Targets"));
+			// 2. Targets Category
+			ConfigCategory targets = builder.getOrCreateCategory(Component.translatable("config.masterattractor.category.targets"));
 
-			targets.addEntry(entry.startBooleanToggle(Component.literal("Attract Dropped Items"), Config.attractItems)
+			targets.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.attractItems"), Config.attractItems)
 				.setDefaultValue(true)
-				.setTooltip(Component.literal("Pull dropped items on the ground."))
+				.setTooltip(Component.translatable("config.masterattractor.attractItems.tooltip"))
 				.setSaveConsumer(val -> Config.attractItems = val)
 				.build());
 
-			targets.addEntry(entry.startBooleanToggle(Component.literal("Attract XP Orbs"), Config.attractXpOrbs)
+			targets.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.attractXpOrbs"), Config.attractXpOrbs)
 				.setDefaultValue(true)
-				.setTooltip(Component.literal("Pull experience orbs."))
+				.setTooltip(Component.translatable("config.masterattractor.attractXpOrbs.tooltip"))
 				.setSaveConsumer(val -> Config.attractXpOrbs = val)
 				.build());
 
-			targets.addEntry(entry.startBooleanToggle(Component.literal("Attract Projectiles"), Config.attractProjectiles)
+			targets.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.attractProjectiles"), Config.attractProjectiles)
 				.setDefaultValue(true)
-				.setTooltip(Component.literal("Pull arrows, tridents, and throwables."))
+				.setTooltip(Component.translatable("config.masterattractor.attractProjectiles.tooltip"))
 				.setSaveConsumer(val -> Config.attractProjectiles = val)
 				.build());
 
-			targets.addEntry(entry.startBooleanToggle(Component.literal("Attract Mobs"), Config.attractMobs)
+			targets.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.attractMobs"), Config.attractMobs)
 				.setDefaultValue(false)
-				.setTooltip(Component.literal("Pull living mobs toward the player."))
+				.setTooltip(Component.translatable("config.masterattractor.attractMobs.tooltip"))
 				.setSaveConsumer(val -> Config.attractMobs = val)
 				.build());
 
-			targets.addEntry(entry.startBooleanToggle(Component.literal("Attract Boats"), Config.attractBoats)
+			targets.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.attractPlayers"), Config.attractPlayers)
 				.setDefaultValue(false)
-				.setTooltip(Component.literal("Pull boats."))
+				.setTooltip(Component.translatable("config.masterattractor.attractPlayers.tooltip"))
+				.setSaveConsumer(val -> Config.attractPlayers = val)
+				.build());
+
+			targets.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.attractBoats"), Config.attractBoats)
+				.setDefaultValue(false)
+				.setTooltip(Component.translatable("config.masterattractor.attractBoats.tooltip"))
 				.setSaveConsumer(val -> Config.attractBoats = val)
 				.build());
 
-			targets.addEntry(entry.startBooleanToggle(Component.literal("Attract Minecarts"), Config.attractMinecarts)
+			targets.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.attractMinecarts"), Config.attractMinecarts)
 				.setDefaultValue(false)
-				.setTooltip(Component.literal("Pull minecarts."))
+				.setTooltip(Component.translatable("config.masterattractor.attractMinecarts.tooltip"))
 				.setSaveConsumer(val -> Config.attractMinecarts = val)
 				.build());
 
-			targets.addEntry(entry.startBooleanToggle(Component.literal("Attract Falling Blocks"), Config.attractFallingBlocks)
+			targets.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.attractFallingBlocks"), Config.attractFallingBlocks)
 				.setDefaultValue(false)
-				.setTooltip(Component.literal("Pull falling sand, gravel, anvils, etc."))
+				.setTooltip(Component.translatable("config.masterattractor.attractFallingBlocks.tooltip"))
 				.setSaveConsumer(val -> Config.attractFallingBlocks = val)
 				.build());
 
-			// Behavior & FX Category
-			ConfigCategory behavior = builder.getOrCreateCategory(Component.literal("Behavior & Effects"));
+			// 3. Item Filtering Category
+			ConfigCategory filters = builder.getOrCreateCategory(Component.translatable("config.masterattractor.category.filters"));
 
-			behavior.addEntry(entry.startBooleanToggle(Component.literal("Respect Pickup Delay"), Config.respectPickupDelay)
+			filters.addEntry(entry.startEnumSelector(Component.translatable("config.masterattractor.filterMode"), Config.FilterMode.class, Config.filterMode)
+				.setDefaultValue(Config.FilterMode.NONE)
+				.setTooltip(Component.translatable("config.masterattractor.filterMode.tooltip"))
+				.setSaveConsumer(val -> Config.filterMode = val)
+				.build());
+
+			filters.addEntry(entry.startStrList(Component.translatable("config.masterattractor.filteredItems"), Config.filteredItems)
+				.setDefaultValue(new ArrayList<>(Config.filteredItems))
+				.setTooltip(Component.translatable("config.masterattractor.filteredItems.tooltip"))
+				.setSaveConsumer(val -> Config.filteredItems = new ArrayList<>(val))
+				.build());
+
+			filters.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.checkInventorySpace"), Config.checkInventorySpace)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("config.masterattractor.checkInventorySpace.tooltip"))
+				.setSaveConsumer(val -> Config.checkInventorySpace = val)
+				.build());
+
+			filters.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.vacuumMode"), Config.vacuumMode)
 				.setDefaultValue(false)
-				.setTooltip(Component.literal("When enabled, will not pull items that cannot be picked up yet."))
+				.setTooltip(Component.translatable("config.masterattractor.vacuumMode.tooltip"))
+				.setSaveConsumer(val -> Config.vacuumMode = val)
+				.build());
+
+			// 4. Behavior & FX Category
+			ConfigCategory behavior = builder.getOrCreateCategory(Component.translatable("config.masterattractor.category.behavior"));
+
+			behavior.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.respectPickupDelay"), Config.respectPickupDelay)
+				.setDefaultValue(false)
+				.setTooltip(Component.translatable("config.masterattractor.respectPickupDelay.tooltip"))
 				.setSaveConsumer(val -> Config.respectPickupDelay = val)
 				.build());
 
-			behavior.addEntry(entry.startBooleanToggle(Component.literal("Ignore Invulnerable Players"), Config.ignorePlayersWithGodMode)
+			behavior.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.ignorePlayersWithGodMode"), Config.ignorePlayersWithGodMode)
 				.setDefaultValue(true)
-				.setTooltip(Component.literal("Do not attract if the player is in creative or invulnerable mode."))
+				.setTooltip(Component.translatable("config.masterattractor.ignorePlayersWithGodMode.tooltip"))
 				.setSaveConsumer(val -> Config.ignorePlayersWithGodMode = val)
 				.build());
 
-			behavior.addEntry(entry.startBooleanToggle(Component.literal("Play Sound Effects"), Config.playSoundOnPull)
+			behavior.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.playSoundOnPull"), Config.playSoundOnPull)
 				.setDefaultValue(true)
-				.setTooltip(Component.literal("Play subtle pickup chime on attraction."))
+				.setTooltip(Component.translatable("config.masterattractor.playSoundOnPull.tooltip"))
 				.setSaveConsumer(val -> Config.playSoundOnPull = val)
 				.build());
 
-			behavior.addEntry(entry.startBooleanToggle(Component.literal("Spawn Particles"), Config.spawnParticlesOnPull)
+			behavior.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.spawnParticlesOnPull"), Config.spawnParticlesOnPull)
 				.setDefaultValue(true)
-				.setTooltip(Component.literal("Spawn portal particle trails when pulling entities."))
+				.setTooltip(Component.translatable("config.masterattractor.spawnParticlesOnPull.tooltip"))
 				.setSaveConsumer(val -> Config.spawnParticlesOnPull = val)
 				.build());
 

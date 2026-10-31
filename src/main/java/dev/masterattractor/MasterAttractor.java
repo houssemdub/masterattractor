@@ -34,7 +34,11 @@ public final class MasterAttractor implements ModInitializer {
 			ServerPlayer player = context.player();
 			boolean enabled = AttractionManager.togglePlayer(player);
 			ServerPlayNetworking.send(player, new SyncStatePayload(enabled));
-			player.sendSystemMessage(Component.literal("MasterAttractor: " + (enabled ? "§aACTIVATED" : "§cDEACTIVATED")), true);
+			Component status = Component.translatable(enabled ? "text.masterattractor.activated" : "text.masterattractor.deactivated");
+			player.sendSystemMessage(
+				Component.translatable("text.masterattractor.prefix").append(status),
+				true
+			);
 		});
 
 		// Sync state on player join
@@ -42,6 +46,11 @@ public final class MasterAttractor implements ModInitializer {
 			ServerPlayer player = handler.getPlayer();
 			boolean enabled = AttractionManager.isPlayerAttracting(player);
 			ServerPlayNetworking.send(player, new SyncStatePayload(enabled));
+		});
+
+		// Clean up state on disconnect to avoid memory leak
+		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+			AttractionManager.onPlayerDisconnect(handler.getPlayer());
 		});
 
 		// Server tick

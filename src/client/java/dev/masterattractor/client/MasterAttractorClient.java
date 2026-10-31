@@ -32,8 +32,9 @@ public final class MasterAttractorClient implements ClientModInitializer {
 			context.client().execute(() -> {
 				isAttractorActive = payload.enabled();
 				if (context.client().gui != null) {
+					Component status = Component.translatable(isAttractorActive ? "text.masterattractor.on" : "text.masterattractor.off");
 					context.client().gui.setOverlayMessage(
-						Component.literal("MasterAttractor: " + (isAttractorActive ? "§aON" : "§cOFF")),
+						Component.translatable("text.masterattractor.prefix").append(status),
 						false
 					);
 				}

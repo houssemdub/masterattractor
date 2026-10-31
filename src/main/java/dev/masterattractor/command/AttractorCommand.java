@@ -19,7 +19,8 @@ public final class AttractorCommand {
 					ServerPlayer player = ctx.getSource().getPlayerOrException();
 					boolean enabled = AttractionManager.togglePlayer(player);
 					ServerPlayNetworking.send(player, new SyncStatePayload(enabled));
-					ctx.getSource().sendSuccess(() -> Component.literal("MasterAttractor: " + (enabled ? "§aACTIVATED" : "§cDEACTIVATED")), false);
+					Component status = Component.translatable(enabled ? "text.masterattractor.activated" : "text.masterattractor.deactivated");
+					ctx.getSource().sendSuccess(() -> Component.translatable("text.masterattractor.prefix").append(status), false);
 					return 1;
 				})
 			)
@@ -27,7 +28,7 @@ public final class AttractorCommand {
 				.requires(source -> Commands.LEVEL_GAMEMASTERS.check(source.permissions()))
 				.executes(ctx -> {
 					Config.load();
-					ctx.getSource().sendSuccess(() -> Component.literal("§a[MasterAttractor] Configuration reloaded."), true);
+					ctx.getSource().sendSuccess(() -> Component.translatable("text.masterattractor.reloaded"), true);
 					return 1;
 				})
 			)
@@ -38,7 +39,7 @@ public final class AttractorCommand {
 						double val = DoubleArgumentType.getDouble(ctx, "value");
 						Config.radius = val;
 						Config.save();
-						ctx.getSource().sendSuccess(() -> Component.literal("§a[MasterAttractor] Radius set to: " + val), true);
+						ctx.getSource().sendSuccess(() -> Component.translatable("text.masterattractor.radius_set", val), true);
 						return 1;
 					})
 				)
@@ -50,7 +51,7 @@ public final class AttractorCommand {
 						double val = DoubleArgumentType.getDouble(ctx, "value");
 						Config.strength = val;
 						Config.save();
-						ctx.getSource().sendSuccess(() -> Component.literal("§a[MasterAttractor] Strength set to: " + val), true);
+						ctx.getSource().sendSuccess(() -> Component.translatable("text.masterattractor.strength_set", val), true);
 						return 1;
 					})
 				)

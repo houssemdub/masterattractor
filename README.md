@@ -14,6 +14,10 @@ MasterAttractor effortlessly draws dropped items, experience orbs, projectiles, 
   - **Projectiles** (arrows, tridents, ender pearls, and throwable items)
   - **Living Mobs** (optional toggle to attract friendly or hostile creatures)
   - **Vehicles & Blocks** (optional attraction for Boats, Minecarts, and Falling Blocks like sand/gravel)
+- **🎯 Smart Filtering & Inventory Protection**:
+  - **Item Blacklist / Whitelist**: Filter out unwanted junk (dirt, cobblestone, rotten flesh) or pull only high-value materials.
+  - **Inventory Overflow Protection**: Stops pulling items when your inventory is completely full, eliminating endless item orbiting and bouncing.
+  - **Vacuum Mode**: Option to instantly insert items directly into player inventory upon attraction.
 - **⚙️ Deeply Customizable**:
   - Live radius adjustment ($1$ to $128$ blocks).
   - Configurable pull strength / velocity curves.
@@ -22,13 +26,15 @@ MasterAttractor effortlessly draws dropped items, experience orbs, projectiles, 
   - Creative / invulnerable mode bypass toggle.
 - **🎨 Visual & Audio Feedback**:
   - Optional portal particle trail showing incoming attracted entities.
-  - Optional XP pickup chime when items are pulled in.
+  - Smoothed, throttled audio chime on attraction (prevents sound flooding).
 - **🖥️ In-Game Configuration GUI**:
   - Seamless integration with **Mod Menu** and **Cloth Config**.
   - Configure every single setting visually without leaving your game or touching JSON files.
 - **⌨️ Instant Keybind & Commands**:
   - Press **`V`** (configurable in Controls) for instant on/off toggling with action-bar confirmation.
   - In-game commands with live auto-completion for operators and players.
+- **🌐 Full Localization**:
+  - Ready for multi-language translations (`en_us.json` baseline).
 
 ---
 
