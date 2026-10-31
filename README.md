@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Logo_Black_Bg.png" alt="MasterAttractor Logo" width="480">
+</p>
+
 # MasterAttractor 🧲
 
 A modern, highly customizable, and performance-friendly radius magnet mod for **Minecraft 1.21.11 Fabric**.
@@ -138,3 +142,12 @@ To compile the mod JAR yourself:
 ## 📄 License
 
 This mod is available under the **MIT License**. Feel free to use it in modpacks or customize it to your needs!
+
+---
+
+## 📽️ Preview
+
+<p align="center">
+  <img src="MasterAttractor.gif" alt="MasterAttractor in Action" width="100%">
+</p>
+
