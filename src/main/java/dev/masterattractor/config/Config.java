@@ -1,16 +1,31 @@
 package dev.masterattractor.config;
 
+import com.google.gson.*;
+import dev.masterattractor.MasterAttractor;
 import net.fabricmc.loader.api.FabricLoader;
 
-import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public final class Config {
-	public static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("masterattractor.json");
+	public static Path getConfigPath() {
+		try {
+			var loader = FabricLoader.getInstance();
+			if (loader != null) {
+				Path dir = loader.getConfigDir();
+				if (dir != null) {
+					return dir.resolve("masterattractor.json");
+				}
+			}
+		} catch (Throwable ignored) {}
+		return Path.of("config", "masterattractor.json");
+	}
+
+	public static final Path CONFIG_PATH = getConfigPath();
+	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
 	public enum FilterMode {
 		NONE,
@@ -44,6 +59,17 @@ public final class Config {
 		"minecraft:granite",
 		"minecraft:rotten_flesh"
 	));
+	private static Set<String> filteredItemsSet = new HashSet<>(filteredItems);
+
+	public static boolean isItemFiltered(String id) {
+		return filteredItemsSet.contains(id);
+	}
+
+	public static void updateFilteredItems(List<String> items) {
+		filteredItems = new ArrayList<>(items);
+		filteredItemsSet = new HashSet<>(items);
+	}
+
 	public static boolean checkInventorySpace = true;
 	public static boolean vacuumMode = false;
 
@@ -65,52 +91,56 @@ public final class Config {
 				save();
 				return;
 			}
-			String json = Files.readString(CONFIG_PATH);
-			Map<String, Object> values = parseJson(json);
+			try (Reader reader = Files.newBufferedReader(CONFIG_PATH)) {
+				JsonObject obj = JsonParser.parseReader(reader).getAsJsonObject();
 
-			enabled = asBoolean(values.getOrDefault("enabled", true), true);
-			radius = asDouble(values.getOrDefault("radius", 10.0), 10.0);
-			strength = asDouble(values.getOrDefault("strength", 1.25), 1.25);
-			tickInterval = asInt(values.getOrDefault("tickInterval", 1), 1);
+				if (obj.has("enabled")) enabled = obj.get("enabled").getAsBoolean();
+				if (obj.has("radius")) radius = Math.clamp(obj.get("radius").getAsDouble(), 1.0, 48.0);
+				if (obj.has("strength")) strength = Math.clamp(obj.get("strength").getAsDouble(), 0.1, 10.0);
+				if (obj.has("tickInterval")) tickInterval = Math.max(1, obj.get("tickInterval").getAsInt());
 
-			attractItems = asBoolean(values.getOrDefault("attractItems", true), true);
-			attractXpOrbs = asBoolean(values.getOrDefault("attractXpOrbs", true), true);
-			attractProjectiles = asBoolean(values.getOrDefault("attractProjectiles", true), true);
-			attractMobs = asBoolean(values.getOrDefault("attractMobs", false), false);
-			attractPlayers = asBoolean(values.getOrDefault("attractPlayers", false), false);
-			attractBoats = asBoolean(values.getOrDefault("attractBoats", false), false);
-			attractMinecarts = asBoolean(values.getOrDefault("attractMinecarts", false), false);
-			attractFallingBlocks = asBoolean(values.getOrDefault("attractFallingBlocks", false), false);
+				if (obj.has("attractItems")) attractItems = obj.get("attractItems").getAsBoolean();
+				if (obj.has("attractXpOrbs")) attractXpOrbs = obj.get("attractXpOrbs").getAsBoolean();
+				if (obj.has("attractProjectiles")) attractProjectiles = obj.get("attractProjectiles").getAsBoolean();
+				if (obj.has("attractMobs")) attractMobs = obj.get("attractMobs").getAsBoolean();
+				if (obj.has("attractPlayers")) attractPlayers = obj.get("attractPlayers").getAsBoolean();
+				if (obj.has("attractBoats")) attractBoats = obj.get("attractBoats").getAsBoolean();
+				if (obj.has("attractMinecarts")) attractMinecarts = obj.get("attractMinecarts").getAsBoolean();
+				if (obj.has("attractFallingBlocks")) attractFallingBlocks = obj.get("attractFallingBlocks").getAsBoolean();
 
-			String modeStr = asString(values.getOrDefault("filterMode", "NONE"), "NONE");
-			try {
-				filterMode = FilterMode.valueOf(modeStr.toUpperCase(Locale.ROOT));
-			} catch (IllegalArgumentException e) {
-				filterMode = FilterMode.NONE;
-			}
-
-			if (values.get("filteredItems") instanceof List<?> list) {
-				filteredItems = new ArrayList<>();
-				for (Object o : list) {
-					filteredItems.add(String.valueOf(o));
+				if (obj.has("filterMode")) {
+					try {
+						filterMode = FilterMode.valueOf(obj.get("filterMode").getAsString().toUpperCase(Locale.ROOT));
+					} catch (Exception ignored) {
+						filterMode = FilterMode.NONE;
+					}
 				}
+
+				if (obj.has("filteredItems") && obj.get("filteredItems").isJsonArray()) {
+					List<String> list = new ArrayList<>();
+					for (JsonElement el : obj.getAsJsonArray("filteredItems")) {
+						list.add(el.getAsString());
+					}
+					updateFilteredItems(list);
+				} else {
+					updateFilteredItems(filteredItems);
+				}
+
+				if (obj.has("checkInventorySpace")) checkInventorySpace = obj.get("checkInventorySpace").getAsBoolean();
+				if (obj.has("vacuumMode")) vacuumMode = obj.get("vacuumMode").getAsBoolean();
+
+				if (obj.has("ignorePlayersWithGodMode")) ignorePlayersWithGodMode = obj.get("ignorePlayersWithGodMode").getAsBoolean();
+				if (obj.has("onlyPullToNearestPlayer")) onlyPullToNearestPlayer = obj.get("onlyPullToNearestPlayer").getAsBoolean();
+				if (obj.has("respectPickupDelay")) respectPickupDelay = obj.get("respectPickupDelay").getAsBoolean();
+				if (obj.has("playSoundOnPull")) playSoundOnPull = obj.get("playSoundOnPull").getAsBoolean();
+				if (obj.has("spawnParticlesOnPull")) spawnParticlesOnPull = obj.get("spawnParticlesOnPull").getAsBoolean();
+
+				if (obj.has("showRadiusOverlay")) showRadiusOverlay = obj.get("showRadiusOverlay").getAsBoolean();
+				if (obj.has("overlayColor")) overlayColor = obj.get("overlayColor").getAsInt();
+				if (obj.has("overlayOpacity")) overlayOpacity = obj.get("overlayOpacity").getAsDouble();
 			}
-
-			checkInventorySpace = asBoolean(values.getOrDefault("checkInventorySpace", true), true);
-			vacuumMode = asBoolean(values.getOrDefault("vacuumMode", false), false);
-
-			ignorePlayersWithGodMode = asBoolean(values.getOrDefault("ignorePlayersWithGodMode", true), true);
-			onlyPullToNearestPlayer = asBoolean(values.getOrDefault("onlyPullToNearestPlayer", false), false);
-			respectPickupDelay = asBoolean(values.getOrDefault("respectPickupDelay", false), false);
-			playSoundOnPull = asBoolean(values.getOrDefault("playSoundOnPull", true), true);
-			spawnParticlesOnPull = asBoolean(values.getOrDefault("spawnParticlesOnPull", true), true);
-
-			showRadiusOverlay = asBoolean(values.getOrDefault("showRadiusOverlay", true), true);
-			overlayColor = asInt(values.getOrDefault("overlayColor", 0x00FF00), 0x00FF00);
-			overlayOpacity = asDouble(values.getOrDefault("overlayOpacity", 0.3), 0.3);
-
 		} catch (Exception e) {
-			dev.masterattractor.MasterAttractor.LOGGER.warn("Failed to load MasterAttractor config, using defaults", e);
+			MasterAttractor.LOGGER.warn("Failed to load MasterAttractor config, writing defaults", e);
 			save();
 		}
 	}
@@ -118,117 +148,46 @@ public final class Config {
 	public static void save() {
 		try {
 			Files.createDirectories(CONFIG_PATH.getParent());
-			StringBuilder sb = new StringBuilder();
-			sb.append("{\n");
-			sb.append("  ").append(quote("enabled")).append(": ").append(enabled).append(",\n");
-			sb.append("  ").append(quote("radius")).append(": ").append(radius).append(",\n");
-			sb.append("  ").append(quote("strength")).append(": ").append(strength).append(",\n");
-			sb.append("  ").append(quote("tickInterval")).append(": ").append(tickInterval).append(",\n");
-			sb.append("  ").append(quote("attractItems")).append(": ").append(attractItems).append(",\n");
-			sb.append("  ").append(quote("attractXpOrbs")).append(": ").append(attractXpOrbs).append(",\n");
-			sb.append("  ").append(quote("attractProjectiles")).append(": ").append(attractProjectiles).append(",\n");
-			sb.append("  ").append(quote("attractMobs")).append(": ").append(attractMobs).append(",\n");
-			sb.append("  ").append(quote("attractPlayers")).append(": ").append(attractPlayers).append(",\n");
-			sb.append("  ").append(quote("attractBoats")).append(": ").append(attractBoats).append(",\n");
-			sb.append("  ").append(quote("attractMinecarts")).append(": ").append(attractMinecarts).append(",\n");
-			sb.append("  ").append(quote("attractFallingBlocks")).append(": ").append(attractFallingBlocks).append(",\n");
-			sb.append("  ").append(quote("filterMode")).append(": ").append(quote(filterMode.name())).append(",\n");
-			sb.append("  ").append(quote("filteredItems")).append(": [\n");
-			for (int i = 0; i < filteredItems.size(); i++) {
-				sb.append("    ").append(quote(filteredItems.get(i)));
-				if (i < filteredItems.size() - 1) sb.append(",");
-				sb.append("\n");
+			JsonObject obj = new JsonObject();
+			obj.addProperty("enabled", enabled);
+			obj.addProperty("radius", radius);
+			obj.addProperty("strength", strength);
+			obj.addProperty("tickInterval", tickInterval);
+
+			obj.addProperty("attractItems", attractItems);
+			obj.addProperty("attractXpOrbs", attractXpOrbs);
+			obj.addProperty("attractProjectiles", attractProjectiles);
+			obj.addProperty("attractMobs", attractMobs);
+			obj.addProperty("attractPlayers", attractPlayers);
+			obj.addProperty("attractBoats", attractBoats);
+			obj.addProperty("attractMinecarts", attractMinecarts);
+			obj.addProperty("attractFallingBlocks", attractFallingBlocks);
+
+			obj.addProperty("filterMode", filterMode.name());
+			JsonArray arr = new JsonArray();
+			for (String item : filteredItems) {
+				arr.add(item);
 			}
-			sb.append("  ],\n");
-			sb.append("  ").append(quote("checkInventorySpace")).append(": ").append(checkInventorySpace).append(",\n");
-			sb.append("  ").append(quote("vacuumMode")).append(": ").append(vacuumMode).append(",\n");
-			sb.append("  ").append(quote("ignorePlayersWithGodMode")).append(": ").append(ignorePlayersWithGodMode).append(",\n");
-			sb.append("  ").append(quote("onlyPullToNearestPlayer")).append(": ").append(onlyPullToNearestPlayer).append(",\n");
-			sb.append("  ").append(quote("respectPickupDelay")).append(": ").append(respectPickupDelay).append(",\n");
-			sb.append("  ").append(quote("playSoundOnPull")).append(": ").append(playSoundOnPull).append(",\n");
-			sb.append("  ").append(quote("spawnParticlesOnPull")).append(": ").append(spawnParticlesOnPull).append(",\n");
-			sb.append("  ").append(quote("showRadiusOverlay")).append(": ").append(showRadiusOverlay).append(",\n");
-			sb.append("  ").append(quote("overlayColor")).append(": ").append(overlayColor).append(",\n");
-			sb.append("  ").append(quote("overlayOpacity")).append(": ").append(overlayOpacity).append("\n");
-			sb.append("}\n");
-			Files.writeString(CONFIG_PATH, sb.toString());
-		} catch (IOException e) {
-			dev.masterattractor.MasterAttractor.LOGGER.warn("Failed to save MasterAttractor config", e);
-		}
-	}
+			obj.add("filteredItems", arr);
 
-	private static Map<String, Object> parseJson(String json) {
-		Map<String, Object> map = new LinkedHashMap<>();
-		json = json.trim();
-		if (!json.startsWith("{") || !json.endsWith("}")) return map;
+			obj.addProperty("checkInventorySpace", checkInventorySpace);
+			obj.addProperty("vacuumMode", vacuumMode);
 
-		// Extract arrays first
-		Pattern arrayPattern = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\[([^\\]]*)\\]");
-		Matcher arrayMatcher = arrayPattern.matcher(json);
-		while (arrayMatcher.find()) {
-			String key = arrayMatcher.group(1);
-			String rawArray = arrayMatcher.group(2).trim();
-			List<String> items = new ArrayList<>();
-			if (!rawArray.isEmpty()) {
-				for (String part : rawArray.split(",")) {
-					String s = part.trim();
-					if (s.startsWith("\"") && s.endsWith("\"") && s.length() >= 2) {
-						s = s.substring(1, s.length() - 1);
-					}
-					if (!s.isEmpty()) items.add(s);
-				}
+			obj.addProperty("ignorePlayersWithGodMode", ignorePlayersWithGodMode);
+			obj.addProperty("onlyPullToNearestPlayer", onlyPullToNearestPlayer);
+			obj.addProperty("respectPickupDelay", respectPickupDelay);
+			obj.addProperty("playSoundOnPull", playSoundOnPull);
+			obj.addProperty("spawnParticlesOnPull", spawnParticlesOnPull);
+
+			obj.addProperty("showRadiusOverlay", showRadiusOverlay);
+			obj.addProperty("overlayColor", overlayColor);
+			obj.addProperty("overlayOpacity", overlayOpacity);
+
+			try (Writer writer = Files.newBufferedWriter(CONFIG_PATH)) {
+				GSON.toJson(obj, writer);
 			}
-			map.put(key, items);
+		} catch (Exception e) {
+			MasterAttractor.LOGGER.warn("Failed to save MasterAttractor config", e);
 		}
-
-		// Remove processed arrays for simple key-value matching
-		String withoutArrays = arrayMatcher.replaceAll("");
-		Pattern kvPattern = Pattern.compile("\"([^\"]+)\"\\s*:\\s*([^,}]+)");
-		Matcher matcher = kvPattern.matcher(withoutArrays);
-		while (matcher.find()) {
-			String key = matcher.group(1);
-			String val = matcher.group(2).trim();
-			map.put(key, parseValue(val));
-		}
-		return map;
-	}
-
-	private static Object parseValue(String val) {
-		if (val.equalsIgnoreCase("true") || val.equalsIgnoreCase("false")) return Boolean.parseBoolean(val);
-		if (val.matches("-?\\d+")) return Integer.parseInt(val);
-		if (val.matches("-?\\d+\\.\\d+")) return Double.parseDouble(val);
-		if (val.startsWith("\"") && val.endsWith("\"")) return val.substring(1, val.length() - 1);
-		return val;
-	}
-
-	private static boolean asBoolean(Object v, boolean d) {
-		if (v instanceof Boolean b) return b;
-		if (v instanceof String s) return Boolean.parseBoolean(s);
-		return d;
-	}
-
-	private static int asInt(Object v, int d) {
-		if (v instanceof Number n) return n.intValue();
-		if (v instanceof String s) {
-			try { return Integer.parseInt(s); } catch (NumberFormatException ignored) {}
-		}
-		return d;
-	}
-
-	private static double asDouble(Object v, double d) {
-		if (v instanceof Number n) return n.doubleValue();
-		if (v instanceof String s) {
-			try { return Double.parseDouble(s); } catch (NumberFormatException ignored) {}
-		}
-		return d;
-	}
-
-	private static String asString(Object v, String d) {
-		if (v instanceof String s) return s;
-		return d;
-	}
-
-	private static String quote(String s) {
-		return "\"" + s + "\"";
 	}
 }

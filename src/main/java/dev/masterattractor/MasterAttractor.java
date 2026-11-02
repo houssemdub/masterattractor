@@ -31,14 +31,16 @@ public final class MasterAttractor implements ModInitializer {
 
 		// Register incoming C2S toggle handler
 		ServerPlayNetworking.registerGlobalReceiver(TogglePayload.TYPE, (payload, context) -> {
-			ServerPlayer player = context.player();
-			boolean enabled = AttractionManager.togglePlayer(player);
-			ServerPlayNetworking.send(player, new SyncStatePayload(enabled));
-			Component status = Component.translatable(enabled ? "text.masterattractor.activated" : "text.masterattractor.deactivated");
-			player.sendSystemMessage(
-				Component.translatable("text.masterattractor.prefix").append(status),
-				true
-			);
+			context.server().execute(() -> {
+				ServerPlayer player = context.player();
+				boolean enabled = AttractionManager.togglePlayer(player);
+				ServerPlayNetworking.send(player, new SyncStatePayload(enabled));
+				Component status = Component.translatable(enabled ? "text.masterattractor.activated" : "text.masterattractor.deactivated");
+				player.sendSystemMessage(
+					Component.translatable("text.masterattractor.prefix").append(status),
+					true
+				);
+			});
 		});
 
 		// Sync state on player join

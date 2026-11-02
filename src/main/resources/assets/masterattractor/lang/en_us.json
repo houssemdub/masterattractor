@@ -1,5 +1,6 @@
 {
   "key.categories.masterattractor": "MasterAttractor",
+  "key.category.masterattractor.key_category": "MasterAttractor",
   "key.masterattractor.toggle": "Toggle MasterAttractor",
   "text.masterattractor.prefix": "MasterAttractor: ",
   "text.masterattractor.activated": "ACTIVATED",

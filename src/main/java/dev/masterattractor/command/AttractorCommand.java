@@ -34,7 +34,7 @@ public final class AttractorCommand {
 			)
 			.then(Commands.literal("radius")
 				.requires(source -> Commands.LEVEL_GAMEMASTERS.check(source.permissions()))
-				.then(Commands.argument("value", DoubleArgumentType.doubleArg(1.0, 128.0))
+				.then(Commands.argument("value", DoubleArgumentType.doubleArg(1.0, 48.0))
 					.executes(ctx -> {
 						double val = DoubleArgumentType.getDouble(ctx, "value");
 						Config.radius = val;

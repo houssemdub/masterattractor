@@ -35,7 +35,7 @@ public final class MasterAttractorModMenu implements ModMenuApi {
 			general.addEntry(entry.startDoubleField(Component.translatable("config.masterattractor.radius"), Config.radius)
 				.setDefaultValue(10.0)
 				.setMin(1.0)
-				.setMax(128.0)
+				.setMax(48.0)
 				.setTooltip(Component.translatable("config.masterattractor.radius.tooltip"))
 				.setSaveConsumer(val -> Config.radius = val)
 				.build());
@@ -119,7 +119,7 @@ public final class MasterAttractorModMenu implements ModMenuApi {
 			filters.addEntry(entry.startStrList(Component.translatable("config.masterattractor.filteredItems"), Config.filteredItems)
 				.setDefaultValue(new ArrayList<>(Config.filteredItems))
 				.setTooltip(Component.translatable("config.masterattractor.filteredItems.tooltip"))
-				.setSaveConsumer(val -> Config.filteredItems = new ArrayList<>(val))
+				.setSaveConsumer(Config::updateFilteredItems)
 				.build());
 
 			filters.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.checkInventorySpace"), Config.checkInventorySpace)

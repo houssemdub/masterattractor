@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Logo_Black_Bg.png" alt="MasterAttractor Logo" width="500">
+  <img src="Logo_MasterAttractor.png" alt="MasterAttractor Logo" width="500">
 </p>
 
 <h1 align="center">MasterAttractor 🧲</h1>
