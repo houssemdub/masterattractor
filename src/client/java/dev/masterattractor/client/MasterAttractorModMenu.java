@@ -33,9 +33,9 @@ public final class MasterAttractorModMenu implements ModMenuApi {
 				.build());
 
 			general.addEntry(entry.startDoubleField(Component.translatable("config.masterattractor.radius"), Config.radius)
-				.setDefaultValue(10.0)
+				.setDefaultValue(16.0)
 				.setMin(1.0)
-				.setMax(48.0)
+				.setMax(2048.0)
 				.setTooltip(Component.translatable("config.masterattractor.radius.tooltip"))
 				.setSaveConsumer(val -> Config.radius = val)
 				.build());
@@ -56,7 +56,108 @@ public final class MasterAttractorModMenu implements ModMenuApi {
 				.setSaveConsumer(val -> Config.tickInterval = val)
 				.build());
 
-			// 2. Targets Category
+			// 2. Flight & Animation Category
+			ConfigCategory flight = builder.getOrCreateCategory(Component.translatable("config.masterattractor.category.flight"));
+
+			flight.addEntry(entry.startEnumSelector(Component.translatable("config.masterattractor.animationMode"), Config.AnimationMode.class, Config.animationMode)
+				.setDefaultValue(Config.AnimationMode.ARC_HOP)
+				.setTooltip(Component.translatable("config.masterattractor.animationMode.tooltip"))
+				.setSaveConsumer(val -> Config.animationMode = val)
+				.build());
+
+			flight.addEntry(entry.startDoubleField(Component.translatable("config.masterattractor.flightSpeed"), Config.flightSpeed)
+				.setDefaultValue(0.65)
+				.setMin(0.1)
+				.setMax(3.0)
+				.setTooltip(Component.translatable("config.masterattractor.flightSpeed.tooltip"))
+				.setSaveConsumer(val -> Config.flightSpeed = val)
+				.build());
+
+			flight.addEntry(entry.startDoubleField(Component.translatable("config.masterattractor.jumpStrength"), Config.jumpStrength)
+				.setDefaultValue(0.5)
+				.setMin(0.0)
+				.setMax(2.0)
+				.setTooltip(Component.translatable("config.masterattractor.jumpStrength.tooltip"))
+				.setSaveConsumer(val -> Config.jumpStrength = val)
+				.build());
+
+			flight.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.enableCeilingClamping"), Config.enableCeilingClamping)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("config.masterattractor.enableCeilingClamping.tooltip"))
+				.setSaveConsumer(val -> Config.enableCeilingClamping = val)
+				.build());
+
+			flight.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.targetPocket"), Config.targetPocket)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("config.masterattractor.targetPocket.tooltip"))
+				.setSaveConsumer(val -> Config.targetPocket = val)
+				.build());
+
+			flight.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.smoothArrival"), Config.smoothArrival)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("config.masterattractor.smoothArrival.tooltip"))
+				.setSaveConsumer(val -> Config.smoothArrival = val)
+				.build());
+
+			flight.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.instantVacuum"), Config.instantVacuum)
+				.setDefaultValue(false)
+				.setTooltip(Component.translatable("config.masterattractor.instantVacuum.tooltip"))
+				.setSaveConsumer(val -> Config.instantVacuum = val)
+				.build());
+
+			// 3. Visual Trails & Effects Category
+			ConfigCategory visuals = builder.getOrCreateCategory(Component.translatable("config.masterattractor.category.visuals"));
+
+			visuals.addEntry(entry.startEnumSelector(Component.translatable("config.masterattractor.particleTrail"), Config.ParticleTrail.class, Config.particleTrail)
+				.setDefaultValue(Config.ParticleTrail.PORTAL)
+				.setTooltip(Component.translatable("config.masterattractor.particleTrail.tooltip"))
+				.setSaveConsumer(val -> Config.particleTrail = val)
+				.build());
+
+			visuals.addEntry(entry.startEnumSelector(Component.translatable("config.masterattractor.trailDensity"), Config.TrailDensity.class, Config.trailDensity)
+				.setDefaultValue(Config.TrailDensity.MEDIUM)
+				.setTooltip(Component.translatable("config.masterattractor.trailDensity.tooltip"))
+				.setSaveConsumer(val -> Config.trailDensity = val)
+				.build());
+
+			visuals.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.arrivalParticles"), Config.arrivalParticles)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("config.masterattractor.arrivalParticles.tooltip"))
+				.setSaveConsumer(val -> Config.arrivalParticles = val)
+				.build());
+
+			// 4. Audio & Sound Category
+			ConfigCategory audio = builder.getOrCreateCategory(Component.translatable("config.masterattractor.category.audio"));
+
+			audio.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.playSoundOnPull"), Config.playSoundOnPull)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("config.masterattractor.playSoundOnPull.tooltip"))
+				.setSaveConsumer(val -> Config.playSoundOnPull = val)
+				.build());
+
+			audio.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.playArrivalChime"), Config.playArrivalChime)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("config.masterattractor.playArrivalChime.tooltip"))
+				.setSaveConsumer(val -> Config.playArrivalChime = val)
+				.build());
+
+			audio.addEntry(entry.startDoubleField(Component.translatable("config.masterattractor.soundVolume"), Config.soundVolume)
+				.setDefaultValue(0.25)
+				.setMin(0.0)
+				.setMax(1.0)
+				.setTooltip(Component.translatable("config.masterattractor.soundVolume.tooltip"))
+				.setSaveConsumer(val -> Config.soundVolume = val)
+				.build());
+
+			audio.addEntry(entry.startDoubleField(Component.translatable("config.masterattractor.soundPitch"), Config.soundPitch)
+				.setDefaultValue(1.2)
+				.setMin(0.5)
+				.setMax(2.0)
+				.setTooltip(Component.translatable("config.masterattractor.soundPitch.tooltip"))
+				.setSaveConsumer(val -> Config.soundPitch = val)
+				.build());
+
+			// 5. Targets Category
 			ConfigCategory targets = builder.getOrCreateCategory(Component.translatable("config.masterattractor.category.targets"));
 
 			targets.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.attractItems"), Config.attractItems)
@@ -107,7 +208,7 @@ public final class MasterAttractorModMenu implements ModMenuApi {
 				.setSaveConsumer(val -> Config.attractFallingBlocks = val)
 				.build());
 
-			// 3. Item Filtering Category
+			// 6. Item Filtering Category
 			ConfigCategory filters = builder.getOrCreateCategory(Component.translatable("config.masterattractor.category.filters"));
 
 			filters.addEntry(entry.startEnumSelector(Component.translatable("config.masterattractor.filterMode"), Config.FilterMode.class, Config.filterMode)
@@ -134,7 +235,7 @@ public final class MasterAttractorModMenu implements ModMenuApi {
 				.setSaveConsumer(val -> Config.vacuumMode = val)
 				.build());
 
-			// 4. Behavior & FX Category
+			// 7. Behavior Category
 			ConfigCategory behavior = builder.getOrCreateCategory(Component.translatable("config.masterattractor.category.behavior"));
 
 			behavior.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.respectPickupDelay"), Config.respectPickupDelay)
@@ -149,16 +250,10 @@ public final class MasterAttractorModMenu implements ModMenuApi {
 				.setSaveConsumer(val -> Config.ignorePlayersWithGodMode = val)
 				.build());
 
-			behavior.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.playSoundOnPull"), Config.playSoundOnPull)
-				.setDefaultValue(true)
-				.setTooltip(Component.translatable("config.masterattractor.playSoundOnPull.tooltip"))
-				.setSaveConsumer(val -> Config.playSoundOnPull = val)
-				.build());
-
-			behavior.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.spawnParticlesOnPull"), Config.spawnParticlesOnPull)
-				.setDefaultValue(true)
-				.setTooltip(Component.translatable("config.masterattractor.spawnParticlesOnPull.tooltip"))
-				.setSaveConsumer(val -> Config.spawnParticlesOnPull = val)
+			behavior.addEntry(entry.startBooleanToggle(Component.translatable("config.masterattractor.onlyPullToNearestPlayer"), Config.onlyPullToNearestPlayer)
+				.setDefaultValue(false)
+				.setTooltip(Component.translatable("config.masterattractor.onlyPullToNearestPlayer.tooltip"))
+				.setSaveConsumer(val -> Config.onlyPullToNearestPlayer = val)
 				.build());
 
 			return builder.build();

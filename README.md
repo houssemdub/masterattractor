@@ -30,31 +30,43 @@
 
 ## ✨ Features
 
-- 🚀 **Versatile Attraction**:
+- 🚀 **Versatile Attraction & Massive Range**:
+  - **Massive Pull Radius**: Configurable from $1$ up to **$2048$ blocks** with optimized loaded-entity iteration to prevent server lag.
   - **Dropped Items** (configurable to respect or bypass initial pickup delay)
   - **Experience Orbs** (instant absorption with subtle audio-visual feedback)
-  - **Projectiles** (arrows, tridents, ender pearls, and throwable items)
+  - **Projectiles** (incoming arrows, tridents, and throwables — ignores player's own shots)
   - **Living Mobs** (optional toggle to attract friendly or hostile creatures)
   - **Vehicles & Blocks** (optional attraction for Boats, Minecarts, and Falling Blocks like sand/gravel)
+- 🕊️ **Butter-Smooth Flight & Organic Animations**:
+  - **True No-Clip Flight**: Attracted items phase seamlessly through terrain, fences, blocks, and walls.
+  - **Organic Inertia Blending**: Items accelerate and curve smoothly with blended momentum — zero teleportation or snapping.
+  - **Pocket/Belt Targeting**: Flying items aim naturally at waist level ($0.75\text{m}$) into your pocket rather than right into your face.
+  - **4 Flight Animation Modes**:
+    - `ARC_HOP`: Parabolic jump launch with dynamic ceiling clearance clamping.
+    - `SPIRAL`: Swirling vortex orbiting inwards into the pocket.
+    - `MAGNETIC`: High-velocity tractor beam with exponential ease-in acceleration.
+    - `FLOAT`: Gentle wave bobbing drift.
+  - **Dynamic Ceiling Clamping**: Senses overhead ceilings and clamps launch hops to prevent hitting roofs.
+- ✨ **Customizable Particle Trails & FX**:
+  - **12+ Trail Effects**: Portal, Enchanted Hit, Flame, Soul Flame, Electric Spark, Glow, End Rod, Heart, Nautilus, Totem of Undying, Cherry Leaves, Bubbles, or None.
+  - **Trail Density Controls**: Off, Low, Medium, High, Ultra.
+  - **Arrival Sparkle Burst**: Satisfying visual pop when items safely land in your pocket.
 - 🎯 **Smart Filtering & Anti-Swirl Overflow Protection**:
   - **Item Blacklist / Whitelist**: Filter out unwanted junk (dirt, cobblestone, rotten flesh) or pull only high-value materials.
   - **Inventory Overflow Protection**: Stops pulling items when your inventory is completely full, eliminating endless item orbiting and bouncing.
-  - **Vacuum Mode**: Option to instantly insert items directly into player inventory upon attraction.
+  - **Safe Vacuum Mode**: Option to directly insert items into player inventory upon arrival without ground bouncing or duplication glitches.
 - ⚙️ **Deeply Customizable**:
-  - Live radius adjustment ($1$ to $128$ blocks).
-  - Configurable pull strength / velocity curves.
+  - Live radius adjustment ($1$ to $2048$ blocks).
+  - Configurable pull strength / flight speed curves.
   - Tick interval throttling ($1$ tick = smoothest, higher = ultra-lightweight performance).
   - Sneak suppression: simply hold `Shift` to temporarily pause the magnet while sorting inventories or building.
   - Creative / invulnerable mode bypass toggle.
-- 🎨 **Visual & Audio Feedback**:
-  - Optional portal particle trail showing incoming attracted entities.
-  - Smoothed, throttled audio chime on attraction (prevents sound flooding).
+  - Multiplayer nearest-player attraction to eliminate tug-of-war.
 - 🖥️ **In-Game Configuration GUI**:
-  - Seamless integration with **Mod Menu** and **Cloth Config**.
-  - Configure every single setting visually without leaving your game or touching JSON files.
+  - Seamless integration with **Mod Menu** and **Cloth Config** across 7 organized categories.
 - ⌨️ **Instant Keybind & Commands**:
   - Press **`V`** (configurable in Controls) for instant on/off toggling with action-bar confirmation.
-  - In-game commands with live auto-completion for operators and players.
+  - `/attractor toggle`, `/attractor radius <1-2048>`, `/attractor animation <mode>`, `/attractor trail <type>`.
 - 🌐 **Full Localization**:
   - Ready for multi-language translations (`en_us.json` baseline).
 
@@ -74,8 +86,10 @@
 |---|---|---|
 | `/attractor toggle` | All Players | Toggles personal attraction on/off. |
 | `/attractor reload` | Operators (Level 2) | Reloads the configuration file from disk live without restarting. |
-| `/attractor radius <value>` | Operators (Level 2) | Sets the magnet search radius (e.g., `/attractor radius 24`). |
+| `/attractor radius <1-2048>` | Operators (Level 2) | Sets the magnet search radius (supports up to $2048$ blocks!). |
 | `/attractor strength <value>` | Operators (Level 2) | Sets the attraction acceleration force (e.g., `/attractor strength 2.0`). |
+| `/attractor animation <mode>` | Operators (Level 2) | Sets flight animation (`ARC_HOP`, `SPIRAL`, `MAGNETIC`, `FLOAT`). |
+| `/attractor trail <type>` | Operators (Level 2) | Sets particle trail (`PORTAL`, `FLAME`, `ELECTRIC_SPARK`, `HEART`, etc.). |
 
 ---
 
@@ -97,11 +111,14 @@ MasterAttractor includes a built-in item filter engine configurable directly via
 1. Open the pause menu or title screen and select **Mods**.
 2. Select **MasterAttractor** from the list.
 3. Click the **Configure** button to open the settings interface.
-4. Settings are divided into four dedicated categories:
-   - **General**: Master toggle, Radius, Strength, Tick Interval.
-   - **Targets**: Items, XP, Projectiles, Mobs, Boats, Minecarts, Falling Blocks.
-   - **Item Filtering**: Filter Mode, Item List, Inventory Space Check, Vacuum Mode.
-   - **Behavior & Audio/Visual**: Pickup delay respect, God mode bypass, Audio & Particle toggles.
+4. Settings are divided into seven dedicated categories:
+   - **General**: Master toggle, Radius (up to $2048$ blocks), Strength, Tick Interval.
+   - **Flight & Animation**: Animation Mode (`ARC_HOP`, `SPIRAL`, `MAGNETIC`, `FLOAT`), Flight Speed, Launch Hop Multiplier, Ceiling Clamping, Target Pocket, Smooth Arrival, Instant Vacuum.
+   - **Visual Trails & FX**: Particle Trail Effect (12 styles), Trail Density (Low, Medium, High, Ultra), Arrival Sparkle Burst.
+   - **Audio & Sounds**: Pull Sound, Arrival Pop Chime, Volume, Pitch.
+   - **Targets**: Items, XP, Projectiles, Mobs, Players, Boats, Minecarts, Falling Blocks.
+   - **Item Filtering**: Filter Mode, Item List, Inventory Space Check, Safe Vacuum Mode.
+   - **Behavior**: Pickup Delay, God Mode Bypass, Only Pull to Nearest Player.
 
 ### 2. Configuration File (`config/masterattractor.json`)
 ```json

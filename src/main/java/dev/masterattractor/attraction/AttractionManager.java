@@ -3,6 +3,7 @@ package dev.masterattractor.attraction;
 import dev.masterattractor.config.Config;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
@@ -25,6 +26,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -59,9 +61,9 @@ public final class AttractionManager {
 		tickCounter++;
 		if (tickCounter % Config.tickInterval != 0) return;
 
-		// Clean up flight ticks occasionally
+		// Clean up stale flight tracking entries periodically
 		if (tickCounter % 200 == 0) {
-			flightTicks.entrySet().removeIf(entry -> entry.getValue() > 400);
+			flightTicks.entrySet().removeIf(entry -> entry.getValue() > 600);
 		}
 
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
@@ -74,10 +76,24 @@ public final class AttractionManager {
 		ServerLevel level = player.level();
 		if (level == null) return;
 
-		AABB searchBox = AABB.ofSize(player.position(), Config.radius * 2.0, Config.radius * 2.0, Config.radius * 2.0);
-		Predicate<Entity> filter = entity -> canEntityBeAttracted(entity, player);
+		List<Entity> targets;
+		double rSq = Config.radius * Config.radius;
 
-		List<Entity> targets = level.getEntities((Entity) null, searchBox, filter);
+		// Handle huge radius values (up to 2048) efficiently:
+		// When radius > 128, scanning all loaded entities in memory avoids searching tens of thousands of chunk sections
+		if (Config.radius > 128.0) {
+			targets = new ArrayList<>();
+			for (Entity e : level.getAllEntities()) {
+				if (e != player && e.distanceToSqr(player) <= rSq && canEntityBeAttracted(e, player)) {
+					targets.add(e);
+				}
+			}
+		} else {
+			AABB searchBox = AABB.ofSize(player.position(), Config.radius * 2.0, Config.radius * 2.0, Config.radius * 2.0);
+			Predicate<Entity> filter = entity -> canEntityBeAttracted(entity, player);
+			targets = level.getEntities((Entity) null, searchBox, filter);
+		}
+
 		boolean anyPulled = false;
 
 		for (Entity entity : targets) {
@@ -111,8 +127,8 @@ public final class AttractionManager {
 				player.blockPosition(),
 				SoundEvents.EXPERIENCE_ORB_PICKUP,
 				SoundSource.PLAYERS,
-				0.25f,
-				1.2f
+				(float) Config.soundVolume,
+				(float) Config.soundPitch
 			);
 		}
 	}
@@ -199,29 +215,43 @@ public final class AttractionManager {
 	}
 
 	private static boolean pullEntityToward(Entity entity, ServerPlayer player, ServerLevel level) {
-		Vec3 playerPos = player.getEyePosition();
+		// Target either waist/pocket height (0.75m above feet) or eye position
+		Vec3 targetPos = Config.targetPocket ? player.position().add(0, 0.75, 0) : player.getEyePosition();
 		Vec3 entityPos = entity.position();
 
-		Vec3 toPlayer = playerPos.subtract(entityPos);
-		double distanceSq = toPlayer.lengthSqr();
-		if (distanceSq < 0.04) return false;
+		Vec3 toTarget = targetPos.subtract(entityPos);
+		double distanceSq = toTarget.lengthSqr();
+		if (distanceSq < 0.02) return false;
 
 		double distance = Math.sqrt(distanceSq);
 
-		// Handle ItemEntity with no-clip, unique curved flight path, roof height clamping, and safe vacuuming
+		// Handle ItemEntity with butter-smooth flight physics, animations, and safe pocket absorption
 		if (entity instanceof ItemEntity item) {
-			// Enable no-clip through blocks so items never get stuck in walls, ceilings, or terrain
+			// Enable no-clip through blocks so items never get caught on terrain, walls, or fences
 			item.noPhysics = true;
 
 			ItemStack stack = item.getItem().copy();
 			int countBefore = stack.getCount();
 
-			// Vacuum mode or within direct grab range: safely insert into inventory (no dupe bug)
-			if (Config.vacuumMode || distanceSq < 0.36) {
+			// Direct pocket absorption: happens either if instantVacuum is explicitly enabled
+			// OR when the item physically arrives at the player's pocket (distance < 0.45m)
+			if (Config.instantVacuum || distanceSq < 0.20) {
 				player.getInventory().add(stack);
 				int inserted = countBefore - stack.getCount();
 				if (inserted > 0) {
-					level.playSound(null, player.blockPosition(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.2f, 1.0f);
+					if (Config.playArrivalChime) {
+						level.playSound(
+							null,
+							player.blockPosition(),
+							SoundEvents.ITEM_PICKUP,
+							SoundSource.PLAYERS,
+							(float) Config.soundVolume,
+							(float) Config.soundPitch
+						);
+					}
+					if (Config.arrivalParticles) {
+						level.sendParticles(ParticleTypes.CRIT, targetPos.x, targetPos.y, targetPos.z, 3, 0.1, 0.1, 0.1, 0.05);
+					}
 					if (stack.isEmpty()) {
 						item.discard();
 						flightTicks.remove(item.getUUID());
@@ -232,91 +262,152 @@ public final class AttractionManager {
 				}
 			}
 
-			// Track flight progress for jump arc & path curvature
+			// Track flight progress for animation curves
 			int ticks = flightTicks.compute(item.getUUID(), (k, v) -> v == null ? 0 : v + 1);
 
-			// Check vertical clearance above the item to clamp jump height under ceilings
-			BlockPos blockPos = item.blockPosition();
-			int clearance = 0;
-			for (int dy = 1; dy <= 4; dy++) {
-				if (!level.getBlockState(blockPos.above(dy)).isAir()) {
-					break;
+			// Check ceiling clearance if clamping is enabled
+			int clearance = 4;
+			if (Config.enableCeilingClamping) {
+				BlockPos blockPos = item.blockPosition();
+				clearance = 0;
+				for (int dy = 1; dy <= 4; dy++) {
+					if (!level.getBlockState(blockPos.above(dy)).isAir()) {
+						break;
+					}
+					clearance++;
 				}
-				clearance++;
 			}
 
-			// Initial jump hop clamped by ceiling height
-			double maxJump = (clearance == 0) ? 0.05 : Math.min(0.40, 0.12 + clearance * 0.07);
-			double jumpY = (ticks < 6) ? (1.0 - (ticks / 6.0)) * maxJump : 0.0;
-
-			// Deterministic unique lateral curve for each individual item using its UUID hash
-			long hash = item.getUUID().getMostSignificantBits();
-			double lateralFactor = (((hash & 0xFFFF) / 32767.5) - 1.0); // range -1.0 to 1.0
-
-			Vec3 dir = toPlayer.normalize();
+			Vec3 dir = toTarget.normalize();
 			Vec3 lateralDir = new Vec3(-dir.z, 0, dir.x);
 			if (lateralDir.lengthSqr() > 1e-4) {
 				lateralDir = lateralDir.normalize();
 			}
 
-			// Lateral curve converges smoothly as the item approaches player
-			double convergence = Math.clamp(distance / 4.0, 0.0, 1.0);
-			Vec3 lateralOffset = lateralDir.scale(lateralFactor * 0.30 * convergence);
+			long hash = item.getUUID().getMostSignificantBits();
+			double baseSpeed = Math.clamp(Config.flightSpeed * 0.55, 0.15, 1.8);
+			Vec3 desiredVel;
 
-			// Straight-to-inventory flight speed
-			double speed = Math.clamp(Config.strength * 0.45, 0.30, 1.25);
-			Vec3 targetVelocity = dir.scale(speed).add(lateralOffset).add(0, jumpY, 0);
+			switch (Config.animationMode) {
+				case ARC_HOP -> {
+					// Graceful launch hop clamped by roof height, curving smoothly into the pocket
+					double maxHop = (clearance == 0) ? 0.04 : Math.min(0.42, 0.10 + clearance * 0.08) * Config.jumpStrength;
+					double hopY = (ticks < 8) ? (1.0 - (ticks / 8.0)) * maxHop : 0.0;
+					double latFactor = (((hash & 0xFFFF) / 32767.5) - 1.0) * 0.25;
+					double convergence = Math.clamp(distance / 3.0, 0.0, 1.0);
+					Vec3 lateral = lateralDir.scale(latFactor * convergence);
+					desiredVel = dir.scale(baseSpeed).add(lateral).add(0, hopY, 0);
+				}
+				case SPIRAL -> {
+					// Swirls around the player in a decreasing vortex funneling into the pocket
+					double angle = (ticks * 0.35) + ((hash & 0xFF) * 0.08);
+					double orbitRadius = Math.clamp(distance * 0.35, 0.15, 2.0);
+					Vec3 spiralOffset = new Vec3(Math.cos(angle) * orbitRadius, 0, Math.sin(angle) * orbitRadius);
+					Vec3 spiralTarget = targetPos.add(spiralOffset);
+					desiredVel = spiralTarget.subtract(item.position()).normalize().scale(baseSpeed);
+				}
+				case MAGNETIC -> {
+					// High-tech tractor beam with exponential magnetic ease-in
+					double accel = 1.0 + (1.2 / Math.max(0.6, distance));
+					desiredVel = dir.scale(baseSpeed * accel);
+				}
+				case FLOAT -> {
+					// Gentle wave drifting motion
+					double bob = Math.sin((ticks * 0.3) + (hash & 0xF)) * 0.08;
+					desiredVel = dir.scale(baseSpeed * 0.85).add(0, bob, 0);
+				}
+				default -> desiredVel = dir.scale(baseSpeed);
+			}
 
-			item.setDeltaMovement(targetVelocity);
+			// Smooth velocity blending: 40% current inertia + 60% desired trajectory
+			// This completely eliminates teleporting/snapping artifacts and creates a gorgeous, organic flight path!
+			Vec3 currentVel = item.getDeltaMovement();
+			Vec3 smoothedVel = currentVel.scale(0.40).add(desiredVel.scale(0.60));
+
+			// Clamp extreme acceleration
+			if (smoothedVel.lengthSqr() > 2.25) {
+				smoothedVel = smoothedVel.normalize().scale(1.5);
+			}
+			item.setDeltaMovement(smoothedVel);
 
 		} else if (entity instanceof ExperienceOrb xp) {
 			xp.noPhysics = true;
 			double pullFactor = Config.strength / Math.max(1.0, distance);
-			Vec3 pullVec = toPlayer.normalize().scale(pullFactor);
-			xp.setDeltaMovement(xp.getDeltaMovement().add(pullVec.scale(0.35)));
+			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
+			xp.setDeltaMovement(xp.getDeltaMovement().scale(0.5).add(pullVec.scale(0.35)));
 
 		} else if (entity instanceof Projectile proj) {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
-			Vec3 pullVec = toPlayer.normalize().scale(pullFactor);
-			proj.setDeltaMovement(proj.getDeltaMovement().add(pullVec.scale(0.2)));
+			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
+			proj.setDeltaMovement(proj.getDeltaMovement().scale(0.5).add(pullVec.scale(0.2)));
 
 		} else if (entity instanceof Mob mob) {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
-			Vec3 pullVec = toPlayer.normalize().scale(pullFactor);
-			mob.setDeltaMovement(mob.getDeltaMovement().add(pullVec.scale(0.15)));
+			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
+			mob.setDeltaMovement(mob.getDeltaMovement().scale(0.5).add(pullVec.scale(0.15)));
 
 		} else if (entity instanceof Boat boat) {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
-			Vec3 pullVec = toPlayer.normalize().scale(pullFactor);
-			boat.setDeltaMovement(boat.getDeltaMovement().add(pullVec.scale(0.2)));
+			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
+			boat.setDeltaMovement(boat.getDeltaMovement().scale(0.5).add(pullVec.scale(0.2)));
 
 		} else if (entity instanceof Minecart cart) {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
-			Vec3 pullVec = toPlayer.normalize().scale(pullFactor);
-			cart.setDeltaMovement(cart.getDeltaMovement().add(pullVec.scale(0.2)));
+			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
+			cart.setDeltaMovement(cart.getDeltaMovement().scale(0.5).add(pullVec.scale(0.2)));
 
 		} else if (entity instanceof FallingBlockEntity fb) {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
-			Vec3 pullVec = toPlayer.normalize().scale(pullFactor);
-			fb.setDeltaMovement(fb.getDeltaMovement().add(pullVec.scale(0.2)));
+			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
+			fb.setDeltaMovement(fb.getDeltaMovement().scale(0.5).add(pullVec.scale(0.2)));
 
 		} else {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
-			Vec3 pullVec = toPlayer.normalize().scale(pullFactor);
-			entity.setDeltaMovement(entity.getDeltaMovement().add(pullVec.scale(0.15)));
+			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
+			entity.setDeltaMovement(entity.getDeltaMovement().scale(0.5).add(pullVec.scale(0.15)));
 		}
 
-		// Throttled particle emission (avoids packet flood)
-		if (Config.spawnParticlesOnPull && tickCounter % 4 == 0) {
-			level.sendParticles(
-				ParticleTypes.PORTAL,
-				entity.getX(), entity.getY() + 0.2, entity.getZ(),
-				1,
-				0.05, 0.05, 0.05,
-				0.02
-			);
+		// Emit customizable particle trails according to trail density
+		if (Config.particleTrail != Config.ParticleTrail.NONE && Config.trailDensity != Config.TrailDensity.OFF) {
+			SimpleParticleType particle = getParticleType(Config.particleTrail);
+			if (particle != null) {
+				boolean shouldEmit = switch (Config.trailDensity) {
+					case LOW -> tickCounter % 4 == 0;
+					case MEDIUM -> tickCounter % 2 == 0;
+					case HIGH, ULTRA -> true;
+					case OFF -> false;
+				};
+				if (shouldEmit) {
+					int count = (Config.trailDensity == Config.TrailDensity.ULTRA) ? 2 : 1;
+					level.sendParticles(
+						particle,
+						entity.getX(), entity.getY() + 0.15, entity.getZ(),
+						count,
+						0.02, 0.02, 0.02,
+						0.01
+					);
+				}
+			}
 		}
 
 		return true;
+	}
+
+	private static SimpleParticleType getParticleType(Config.ParticleTrail trail) {
+		return switch (trail) {
+			case PORTAL -> ParticleTypes.PORTAL;
+			case ENCHANTED_HIT -> ParticleTypes.ENCHANTED_HIT;
+			case FLAME -> ParticleTypes.FLAME;
+			case SOUL_FIRE_FLAME -> ParticleTypes.SOUL_FIRE_FLAME;
+			case ELECTRIC_SPARK -> ParticleTypes.ELECTRIC_SPARK;
+			case GLOW -> ParticleTypes.GLOW;
+			case END_ROD -> ParticleTypes.END_ROD;
+			case HEART -> ParticleTypes.HEART;
+			case NAUTILUS -> ParticleTypes.NAUTILUS;
+			case TOTEM_OF_UNDYING -> ParticleTypes.TOTEM_OF_UNDYING;
+			case CHERRY_LEAVES -> ParticleTypes.CHERRY_LEAVES;
+			case BUBBLE -> ParticleTypes.BUBBLE;
+			case NONE -> null;
+		};
 	}
 }
