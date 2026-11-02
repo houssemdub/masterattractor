@@ -45,7 +45,6 @@ public final class AttractionManager {
 		public int ticks = 0;
 		public int clearance = 4;
 		public double lateralFactor = 0.0;
-		public Vec3 smoothedVelocity = Vec3.ZERO;
 		public boolean initialized = false;
 	}
 
@@ -229,9 +228,9 @@ public final class AttractionManager {
 	private static boolean pullEntityToward(Entity entity, ServerPlayer player, ServerLevel level) {
 		// Target either waist/pocket height (0.75m above player feet) or eye position
 		Vec3 targetPos = Config.targetPocket ? player.position().add(0, 0.75, 0) : player.getEyePosition();
-		Vec3 entityPos = entity.position();
+		Vec3 currentPos = entity.position();
 
-		Vec3 toTarget = targetPos.subtract(entityPos);
+		Vec3 toTarget = targetPos.subtract(currentPos);
 		double distanceSq = toTarget.lengthSqr();
 		if (distanceSq < 0.01) return false;
 
@@ -239,15 +238,11 @@ public final class AttractionManager {
 
 		// Handle ItemEntity with true no-clip through blocks, continuous parabolic curves, and zero stutter
 		if (entity instanceof ItemEntity item) {
-			// Mark noPhysics and noGravity so vanilla physics and block collisions are 100% disabled
-			item.noPhysics = true;
-			item.setNoGravity(true);
-
 			ItemStack stack = item.getItem().copy();
 			int countBefore = stack.getCount();
 
-			// Direct pocket absorption: occurs if instantVacuum is on OR when the item reaches the pocket (distance < 0.38m)
-			if (Config.instantVacuum || distance < 0.38) {
+			// Direct pocket absorption: occurs if instantVacuum is on OR when the item reaches the pocket (distance < 0.42m)
+			if (Config.instantVacuum || distance < 0.42) {
 				player.getInventory().add(stack);
 				int inserted = countBefore - stack.getCount();
 				if (inserted > 0) {
@@ -269,6 +264,7 @@ public final class AttractionManager {
 						flightStates.remove(item.getUUID());
 					} else {
 						item.setItem(stack);
+						item.setNoGravity(false);
 					}
 					return true;
 				}
@@ -304,59 +300,57 @@ public final class AttractionManager {
 				lateralDir = lateralDir.normalize();
 			}
 
-			// Base flight speed with smooth arrival braking (critically damped)
-			double baseSpeed = Math.clamp(Config.flightSpeed * 0.52, 0.20, 1.40);
-			if (distance < 0.90) {
-				baseSpeed *= Math.clamp(distance / 0.90, 0.30, 1.0);
+			// Base step speed with smooth arrival easing
+			double baseSpeed = Math.clamp(Config.flightSpeed * 0.60, 0.25, 1.80);
+			if (distance < 1.2) {
+				baseSpeed *= Math.clamp(distance / 1.2, 0.35, 1.0);
 			}
+			double stepDist = Math.min(baseSpeed, distance);
 
-			Vec3 desiredVel;
+			Vec3 nextPos;
 
 			switch (Config.animationMode) {
 				case ARC_HOP -> {
-					// Pure continuous parabolic arc: f(u) = 4u(1-u), derivative v_y = 4(1 - 2u)
-					// Starts at 0, peaks smoothly in the middle, and descends cleanly into the pocket
-					double totalArcTicks = 18.0;
-					double u = Math.min(1.0, state.ticks / totalArcTicks);
-					double maxHopScale = (state.clearance == 0) ? 0.02 : Math.min(0.12, 0.03 + state.clearance * 0.02) * Config.jumpStrength;
-					double vHop = (u < 1.0) ? (4.0 * (1.0 - 2.0 * u) * maxHopScale) : 0.0;
+					double totalTicks = 20.0;
+					double u = Math.min(1.0, state.ticks / totalTicks);
+					// Smooth continuous parabolic curve: f(u) = 4u(1-u)
+					double hopFactor = 4.0 * u * (1.0 - u);
+					double maxHop = (state.clearance == 0) ? 0.03 : Math.min(0.8, 0.15 + state.clearance * 0.15) * Config.jumpStrength;
+					double yOffset = (u < 1.0) ? (hopFactor * maxHop) : 0.0;
+					double latOffset = Math.sin(u * Math.PI) * state.lateralFactor * Math.min(1.5, distance * 0.35);
 
-					// Lateral sway: smooth half-sine wave, zero at start and zero at arrival
-					double vLat = Math.sin(u * Math.PI) * state.lateralFactor * Math.min(1.0, distance / 2.0);
-
-					desiredVel = dir.scale(baseSpeed).add(lateralDir.scale(vLat)).add(0, vHop, 0);
+					// Advance along line of sight, with parabolic height and lateral arc
+					nextPos = currentPos.add(dir.scale(stepDist))
+						.add(lateralDir.scale(latOffset * 0.15))
+						.add(0, (1.0 - u) * yOffset * 0.12, 0);
 				}
 				case SPIRAL -> {
-					// Smooth orbiting vortex spiraling inwards into the pocket
-					double angle = (state.ticks * 0.28) + (state.lateralFactor * 4.0);
-					double orbitRadius = Math.clamp(distance * 0.32, 0.10, 1.80);
+					// Orbiting vortex spiraling inwards into the pocket
+					double angle = (state.ticks * 0.30) + (state.lateralFactor * 4.0);
+					double orbitRadius = Math.clamp(distance * 0.30, 0.08, 1.60);
 					Vec3 spiralOffset = new Vec3(Math.cos(angle) * orbitRadius, 0, Math.sin(angle) * orbitRadius);
-					Vec3 spiralTarget = targetPos.add(spiralOffset);
-					desiredVel = spiralTarget.subtract(item.position()).normalize().scale(baseSpeed);
+					nextPos = currentPos.add(dir.scale(stepDist)).add(spiralOffset.scale(0.15));
 				}
 				case MAGNETIC -> {
 					// Tractor beam with smooth exponential magnetic pull
 					double accel = 1.0 + (0.8 / Math.max(0.4, distance));
-					desiredVel = dir.scale(baseSpeed * accel);
+					double magStep = Math.min(baseSpeed * accel, distance);
+					nextPos = currentPos.add(dir.scale(magStep));
 				}
 				case FLOAT -> {
 					// Smooth floating wave
 					double bob = Math.sin(state.ticks * 0.25) * 0.06;
-					desiredVel = dir.scale(baseSpeed * 0.85).add(0, bob, 0);
+					nextPos = currentPos.add(dir.scale(stepDist)).add(0, bob, 0);
 				}
-				default -> desiredVel = dir.scale(baseSpeed);
+				default -> nextPos = currentPos.add(dir.scale(stepDist));
 			}
 
-			// Apply exponential velocity smoothing to eliminate all micro-stutters
-			if (state.smoothedVelocity == null || state.smoothedVelocity.lengthSqr() < 1e-4) {
-				state.smoothedVelocity = desiredVel;
-			} else {
-				state.smoothedVelocity = state.smoothedVelocity.scale(0.20).add(desiredVel.scale(0.80));
-			}
-
-			// Directly assign smoothed velocity and notify network tracking
-			item.setDeltaMovement(state.smoothedVelocity);
-			item.hurtMarked = true;
+			// Directly set coordinates: smoothly phases completely through all solid blocks!
+			item.setPos(nextPos.x, nextPos.y, nextPos.z);
+			// Zero out delta movement so ItemEntity.tick() never triggers block collisions or ejection pushes
+			item.setDeltaMovement(Vec3.ZERO);
+			item.setNoGravity(true);
+			item.noPhysics = true;
 			item.needsSync = true;
 
 		} else if (entity instanceof ExperienceOrb xp) {
@@ -365,45 +359,38 @@ public final class AttractionManager {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
 			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
 			xp.setDeltaMovement(xp.getDeltaMovement().scale(0.5).add(pullVec.scale(0.35)));
-			xp.hurtMarked = true;
 			xp.needsSync = true;
 
 		} else if (entity instanceof Projectile proj) {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
 			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
 			proj.setDeltaMovement(proj.getDeltaMovement().scale(0.5).add(pullVec.scale(0.2)));
-			proj.hurtMarked = true;
 			proj.needsSync = true;
 
 		} else if (entity instanceof Mob mob) {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
 			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
 			mob.setDeltaMovement(mob.getDeltaMovement().scale(0.5).add(pullVec.scale(0.15)));
-			mob.hurtMarked = true;
 
 		} else if (entity instanceof Boat boat) {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
 			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
 			boat.setDeltaMovement(boat.getDeltaMovement().scale(0.5).add(pullVec.scale(0.2)));
-			boat.hurtMarked = true;
 
 		} else if (entity instanceof Minecart cart) {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
 			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
 			cart.setDeltaMovement(cart.getDeltaMovement().scale(0.5).add(pullVec.scale(0.2)));
-			cart.hurtMarked = true;
 
 		} else if (entity instanceof FallingBlockEntity fb) {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
 			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
 			fb.setDeltaMovement(fb.getDeltaMovement().scale(0.5).add(pullVec.scale(0.2)));
-			fb.hurtMarked = true;
 
 		} else {
 			double pullFactor = Config.strength / Math.max(1.0, distance);
 			Vec3 pullVec = toTarget.normalize().scale(pullFactor);
 			entity.setDeltaMovement(entity.getDeltaMovement().scale(0.5).add(pullVec.scale(0.15)));
-			entity.hurtMarked = true;
 		}
 
 		// Emit customizable particle trails according to trail density
